@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polymarket Bot · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:       #0a0c0f;
+    --bg2:      #111318;
+    --bg3:      #181c22;
+    --border:   #1e2330;
+    --text:     #c8d0de;
+    --muted:    #4a5568;
+    --accent:   #00d4aa;
+    --red:      #ff4d6d;
+    --amber:    #f6a623;
+    --blue:     #4d9fff;
+    --green:    #00d4aa;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'IBM Plex Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg2);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+  }
+  .logo-text {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--amber);
+    color: var(--amber);
+  }
+  .last-update {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .btn-refresh {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Layout ── */
+  main { max-width: 1280px; margin: 0 auto; padding: 28px 32px; }
+
+  /* ── Metrics ── */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .metric {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-color, var(--border));
+  }
+  .metric.green::before  { --accent-color: var(--green); }
+  .metric.red::before    { --accent-color: var(--red); }
+  .metric.amber::before  { --accent-color: var(--amber); }
+  .metric.blue::before   { --accent-color: var(--blue); }
+  .metric-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+  }
+  .metric-value.up   { color: var(--green); }
+  .metric-value.down { color: var(--red); }
+  .metric-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 5px;
+    font-family: var(--mono);
+  }
+
+  /* ── Grid principal ── */
+  .grid-main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 900px) { .grid-main { grid-template-columns: 1fr; } }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .card-body { padding: 18px; }
+
+  /* ── Chart ── */
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+  .truncate { max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Pills ── */
+  .pill {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-weight: 500;
+    display: inline-block;
+    letter-spacing: 0.05em;
+    font-family: var(--mono);
+  }
+  .pill-yes    { background: rgba(0,212,170,.15); color: var(--green); border: 1px solid rgba(0,212,170,.3); }
+  .pill-no     { background: rgba(255,77,109,.15); color: var(--red);   border: 1px solid rgba(255,77,109,.3); }
+  .pill-open   { background: rgba(77,159,255,.15); color: var(--blue);  border: 1px solid rgba(77,159,255,.3); }
+  .pill-won    { background: rgba(0,212,170,.15); color: var(--green); border: 1px solid rgba(0,212,170,.3); }
+  .pill-lost   { background: rgba(255,77,109,.15); color: var(--red);   border: 1px solid rgba(255,77,109,.3); }
+  .pill-cat    { background: rgba(255,255,255,.05); color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── Log ── */
+  .log-wrap {
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .log-entry {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-time  { color: var(--muted); margin-right: 8px; }
+  .log-ok    { color: var(--green); }
+  .log-warn  { color: var(--amber); }
+
+  /* ── Exposición ── */
+  .exp-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+  .exp-label { color: var(--muted); width: 90px; flex-shrink: 0; }
+  .exp-track {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .exp-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+    transition: width .4s;
+  }
+  .exp-fill.warn { background: var(--amber); }
+  .exp-fill.danger { background: var(--red); }
+  .exp-val { color: var(--text); width: 52px; text-align: right; }
+
+  /* ── Empty ── */
+  .empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+  .tab {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all .15s;
+    text-transform: uppercase;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <span class="logo-text">POLYMARKET // PAPER BOT</span>
+  </div>
+  <div class="header-right">
+    <span class="badge">PAPER MODE</span>
+    <span class="last-update" id="last-update">—</span>
+    <button class="btn-refresh" onclick="loadData()">↻ Actualizar</button>
+  </div>
+</header>
+
+<main>
+  <!-- Metrics -->
+  <div class="metrics" id="metrics"></div>
+
+  <!-- Grid principal -->
+  <div class="grid-main">
+    <!-- Equity chart + historial -->
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <span class="card-title">Curva de equity</span>
+          <span class="card-title" id="roi-label" style="color:var(--accent)">ROI: —</span>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap"><canvas id="equity-chart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('open',this)">Abiertas</div>
+          <div class="tab" onclick="switchTab('closed',this)">Cerradas</div>
+          <div class="tab" onclick="switchTab('all',this)">Todas</div>
+        </div>
+        <div class="table-wrap">
+          <div class="tab-content active" id="tab-open"></div>
+          <div class="tab-content" id="tab-closed"></div>
+          <div class="tab-content" id="tab-all"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div>
+      <!-- Exposición por categoría -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><span class="card-title">Exposición por categoría</span></div>
+        <div class="card-body" id="exposure-panel"></div>
+      </div>
+
+      <!-- Log de ejecuciones -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Log del bot</span></div>
+        <div class="card-body" style="padding:12px 18px">
+          <div class="log-wrap" id="log-panel"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const INITIAL = 1000;
+let equityChart = null;
+let currentData = null;
+
+async function loadData() {
+  try {
+    const resp = await fetch('/api/data');
+    if (!resp.ok) throw new Error('Sin datos');
+    currentData = await resp.json();
+    render(currentData);
+    document.getElementById('last-update').textContent =
+      'actualizado ' + new Date().toLocaleTimeString('es-CL');
+  } catch(e) {
+    document.getElementById('last-update').textContent = 'error al cargar datos';
+  }
+}
+
+function fmt$(n) {
+  return '$' + parseFloat(n).toLocaleString('es-CL', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtPct(n) {
+  const v = parseFloat(n) * 100;
+  return (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+}
+
+function render(state) {
+  const trades   = state.trades || [];
+  const balance  = parseFloat(state.balance) || INITIAL;
+  const open     = trades.filter(t => t.status === 'open');
+  const closed   = trades.filter(t => t.status !== 'open');
+  const won      = trades.filter(t => t.status === 'won');
+  const pnl      = closed.reduce((a,t) => a + (t.pnl||0), 0);
+  const roi      = (balance - INITIAL) / INITIAL * 100;
+  const winRate  = closed.length ? (won.length / closed.length * 100) : 0;
+  const avgEv    = trades.length ? trades.reduce((a,t)=>a+(t.ev||0),0)/trades.length*100 : 0;
+  const exposure = open.reduce((a,t) => a + t.amount, 0);
+
+  // Metrics
+  document.getElementById('metrics').innerHTML = [
+    { label:'Balance', val: fmt$(balance), sub:'inicial ' + fmt$(INITIAL), cls: balance>=INITIAL?'green':'red', vcls: balance>=INITIAL?'up':'down' },
+    { label:'P&L total', val:(pnl>=0?'+':'')+fmt$(pnl), sub:'ROI ' + roi.toFixed(1)+'%', cls: pnl>=0?'green':'red', vcls: pnl>=0?'up':'down' },
+    { label:'Win rate', val: winRate.toFixed(0)+'%', sub: won.length+'/'+closed.length+' cerradas', cls:'blue', vcls:'' },
+    { label:'Operaciones', val: trades.length, sub: open.length+' abiertas', cls:'amber', vcls:'' },
+    { label:'EV promedio', val: (avgEv>=0?'+':'')+avgEv.toFixed(1)+'%', sub:'por operación', cls: avgEv>=0?'green':'red', vcls: avgEv>=0?'up':'down' },
+    { label:'Exposición', val: fmt$(exposure), sub: (exposure/balance*100).toFixed(0)+'% del balance', cls:'blue', vcls:'' },
+  ].map(m => `<div class="metric ${m.cls}">
+    <div class="metric-label">${m.label}</div>
+    <div class="metric-value ${m.vcls}">${m.val}</div>
+    <div class="metric-sub">${m.sub}</div>
+  </div>`).join('');
+
+  document.getElementById('roi-label').textContent = 'ROI: '+(roi>=0?'+':'')+roi.toFixed(2)+'%';
+  document.getElementById('roi-label').style.color = roi>=0?'var(--green)':'var(--red)';
+
+  renderChart(state.equity_curve || []);
+  renderTables(trades, balance);
+  renderExposure(open, balance);
+  renderLog(state.runs || []);
+}
+
+function renderChart(curve) {
+  const ctx = document.getElementById('equity-chart');
+  const labels = curve.map(p => p.date);
+  const data   = curve.map(p => parseFloat(p.value));
+
+  const isDark = true;
+  const color  = data.length && data[data.length-1] >= INITIAL ? '#00d4aa' : '#ff4d6d';
+
+  if (equityChart) { equityChart.destroy(); equityChart = null; }
+  if (!labels.length) return;
+
+  equityChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: color,
+        backgroundColor: color + '18',
+        borderWidth: 2,
+        pointRadius: data.length < 15 ? 3 : 0,
+        pointBackgroundColor: color,
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: '#4a5568', font: { family: 'IBM Plex Mono', size: 10 }, maxTicksLimit: 8 },
+          grid: { color: '#1e2330' }
+        },
+        y: {
+          ticks: {
+            color: '#4a5568',
+            font: { family: 'IBM Plex Mono', size: 10 },
+            callback: v => '$' + v.toFixed(0)
+          },
+          grid: { color: '#1e2330' }
+        }
+      }
+    }
+  });
+}
+
+function tradeTable(list) {
+  if (!list.length) return '<div class="empty">Sin operaciones</div>';
+  return `<table>
+    <thead><tr>
+      <th>Mercado</th><th>Cat</th><th>Lado</th><th>Monto</th><th>EV</th><th>P&L</th><th>Estado</th>
+    </tr></thead>
+    <tbody>${list.map(t => {
+      const pnl = t.pnl || 0;
+      const pnlStr = t.status==='open' ? '—' : (pnl>=0?'+':'')+fmt$(pnl);
+      const pnlColor = t.status==='open' ? '' : pnl>=0 ? 'color:var(--green)' : 'color:var(--red)';
+      return `<tr>
+        <td><span class="truncate" title="${t.question}" style="display:block">${t.question.substring(0,42)}…</span></td>
+        <td><span class="pill pill-cat">${t.category}</span></td>
+        <td><span class="pill pill-${t.side.toLowerCase()}">${t.side}</span></td>
+        <td>${fmt$(t.amount)}</td>
+        <td style="${t.ev>=0?'color:var(--green)':'color:var(--red)'}">${fmtPct(t.ev)}</td>
+        <td style="${pnlColor}">${pnlStr}</td>
+        <td><span class="pill pill-${t.status}">${t.status==='open'?'abierta':t.status==='won'?'ganó':'perdió'}</span></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function renderTables(trades, balance) {
+  const open   = [...trades].filter(t=>t.status==='open').reverse();
+  const closed = [...trades].filter(t=>t.status!=='open').reverse();
+  document.getElementById('tab-open').innerHTML   = tradeTable(open);
+  document.getElementById('tab-closed').innerHTML = tradeTable(closed);
+  document.getElementById('tab-all').innerHTML    = tradeTable([...trades].reverse());
+}
+
+function renderExposure(open, balance) {
+  const MAX_CAT = 0.35;
+  const cats = {};
+  open.forEach(t => { cats[t.category] = (cats[t.category]||0) + t.amount; });
+
+  const el = document.getElementById('exposure-panel');
+  if (!Object.keys(cats).length) {
+    el.innerHTML = '<div class="empty" style="padding:20px">Sin posiciones abiertas</div>';
+    return;
+  }
+
+  el.innerHTML = Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([cat, amt]) => {
+    const pct = amt / (balance * MAX_CAT) * 100;
+    const cls = pct > 90 ? 'danger' : pct > 65 ? 'warn' : '';
+    return `<div class="exp-row">
+      <span class="exp-label">${cat}</span>
+      <div class="exp-track"><div class="exp-fill ${cls}" style="width:${Math.min(pct,100).toFixed(0)}%"></div></div>
+      <span class="exp-val">${fmt$(amt)}</span>
+    </div>`;
+  }).join('') +
+  `<div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:10px">
+    Límite por cat: ${fmt$(balance*MAX_CAT)} (35%)
+  </div>`;
+}
+
+function renderLog(runs) {
+  const el = document.getElementById('log-panel');
+  if (!runs.length) {
+    el.innerHTML = '<div class="empty" style="padding:20px">Bot no ejecutado aún</div>';
+    return;
+  }
+  el.innerHTML = [...runs].reverse().slice(0, 30).map(r => {
+    const t = new Date(r.timestamp).toLocaleString('es-CL', {
+      day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'
+    });
+    const cls = r.trades_made > 0 ? 'log-ok' : 'log-warn';
+    return `<div class="log-entry">
+      <span class="log-time">${t}</span>
+      <span class="${cls}">${r.trades_made > 0 ? '+'+r.trades_made+' trades' : 'sin señales'}</span>
+      <span style="color:var(--muted);margin-left:8px">${r.markets_seen} mercados · ${fmt$(r.balance)}</span>
+    </div>`;
+  }).join('');
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── Auto-refresh cada 60 segundos ──
+loadData();
+setInterval(loadData, 60_000);
+</script>
+</body>
+</html>
